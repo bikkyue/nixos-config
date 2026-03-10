@@ -16,13 +16,15 @@
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
+      user = builtins.getEnv "USER";
     in {
-      homeConfigurations."ubuntu" = home-manager.lib.homeManagerConfiguration {
+      homeConfigurations.${user} = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
-        modules = [ 
+        modules = [
            lazyvim.homeManagerModules.default
-           ./home.nix 
+           ./home.nix
         ];
+        extraSpecialArgs = { username = user; };
       };
     };
 }
