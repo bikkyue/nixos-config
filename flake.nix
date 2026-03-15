@@ -7,12 +7,15 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    claude-code-nix = {
+        url = "github:sadjow/claude-code-nix";
+    };
     lazyvim = {
       url = "github:pfassina/lazyvim-nix";
     };
   };
 
-  outputs = { nixpkgs, home-manager, lazyvim, ... }:
+  outputs = { nixpkgs, home-manager, lazyvim, claude-code-nix, ... }:
     let
       system = builtins.currentSystem;
       pkgs = nixpkgs.legacyPackages.${system};
@@ -23,6 +26,11 @@
         modules = [
            lazyvim.homeManagerModules.default
            ./home.nix
+           {
+              home.packages = [
+                claude-code-nix.packages.${system}.claude-code 
+              ];
+            }
         ];
         extraSpecialArgs = { username = user; };
       };
