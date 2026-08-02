@@ -1,5 +1,5 @@
 {
-  description = "Dotfiles managed by Home Manager";
+  description = "NixOS and Home Manager configuration";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -8,28 +8,60 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     claude-code-nix = {
-        url = "github:sadjow/claude-code-nix";
+      url = "github:sadjow/claude-code-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { nixpkgs, home-manager, claude-code-nix, ... }:
+  outputs =
+    inputs@{
+      nixpkgs,
+      home-manager,
+      claude-code-nix,
+      ...
+    }:
     let
-      system = builtins.currentSystem;
-      pkgs = nixpkgs.legacyPackages.${system};
-      user = builtins.getEnv "USER";
-    in {
-      homeConfigurations.${user} = home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-        modules = [
-           ./home.nix
-           {
+      username = "bikkyue";
+      mkHome =
+        system:
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = nixpkgs.legacyPackages.${system};
+          extraSpecialArgs = { inherit inputs username; };
+          modules = [
+            ./home.nix
+            {
               home.packages = [
-                claude-code-nix.packages.${system}.claude-code 
+                claude-code-nix.packages.${system}.claude-code
               ];
             }
+          ];
+        };
+    in
+    {
+      nixosConfigurations.Shironere = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./hosts/Shironere/configuration.nix
+          home-manager.nixosModules.home-manager
+          {
+            home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              extraSpecialArgs = { inherit inputs username; };
+              users.${username} = {
+                imports = [ ./home.nix ];
+                home.packages = [
+                  claude-code-nix.packages.x86_64-linux.claude-code
+                ];
+              };
+            };
+          }
         ];
-        extraSpecialArgs = { username = user; };
+      };
+
+      homeConfigurations = {
+        "bikkyue@macos" = mkHome "aarch64-darwin";
+        "bikkyue@linux" = mkHome "x86_64-linux";
       };
     };
 }
-
