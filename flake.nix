@@ -11,13 +11,17 @@
       url = "github:sadjow/claude-code-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    apple-silicon-support = {
+      url = "github:nix-community/nixos-apple-silicon";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
     inputs@{
       nixpkgs,
       home-manager,
-      claude-code-nix,
+      apple-silicon-support,
       ...
     }:
     let
@@ -27,41 +31,43 @@
         home-manager.lib.homeManagerConfiguration {
           pkgs = nixpkgs.legacyPackages.${system};
           extraSpecialArgs = { inherit inputs username; };
-          modules = [
-            ./home.nix
-            {
-              home.packages = [
-                claude-code-nix.packages.${system}.claude-code
-              ];
-            }
-          ];
+          modules = [ ./home.nix ];
         };
     in
     {
       nixosConfigurations.Shironere = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
-          ./hosts/Shironere/configuration.nix
+          ./nixos/Shironere/configuration.nix
           home-manager.nixosModules.home-manager
           {
             home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;
               extraSpecialArgs = { inherit inputs username; };
-              users.${username} = {
-                imports = [ ./home.nix ];
-                home.packages = [
-                  claude-code-nix.packages.x86_64-linux.claude-code
-                ];
-              };
+              users.${username} = import ./home.nix;
             };
           }
         ];
       };
 
-      homeConfigurations = {
-        "bikkyue@macos" = mkHome "aarch64-darwin";
-        "bikkyue@linux" = mkHome "x86_64-linux";
+      nixosConfigurations.Atarayo = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        modules = [
+          ./nixos/Atarayo/configuration.nix
+          apple-silicon-support.nixosModules.apple-silicon-support
+          home-manager.nixosModules.home-manager
+          {
+            home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              extraSpecialArgs = { inherit inputs username; };
+              users.${username} = import ./home.nix;
+            };
+          }
+        ];
       };
+
+      homeConfigurations.${username} = mkHome builtins.currentSystem;
     };
 }
