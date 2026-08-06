@@ -1,5 +1,5 @@
 {
-  description = "Dotfiles managed by Home Manager";
+  description = "NixOS and Home Manager configuration";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -8,28 +8,66 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     claude-code-nix = {
-        url = "github:sadjow/claude-code-nix";
+      url = "github:sadjow/claude-code-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    apple-silicon-support = {
+      url = "github:nix-community/nixos-apple-silicon";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { nixpkgs, home-manager, claude-code-nix, ... }:
+  outputs =
+    inputs@{
+      nixpkgs,
+      home-manager,
+      apple-silicon-support,
+      ...
+    }:
     let
-      system = builtins.currentSystem;
-      pkgs = nixpkgs.legacyPackages.${system};
-      user = builtins.getEnv "USER";
-    in {
-      homeConfigurations.${user} = home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
+      username = "bikkyue";
+      mkHome =
+        system:
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = nixpkgs.legacyPackages.${system};
+          extraSpecialArgs = { inherit inputs username; };
+          modules = [ ./home.nix ];
+        };
+    in
+    {
+      nixosConfigurations.Shironere = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
         modules = [
-           ./home.nix
-           {
-              home.packages = [
-                claude-code-nix.packages.${system}.claude-code 
-              ];
-            }
+          ./nixos/Shironere/configuration.nix
+          home-manager.nixosModules.home-manager
+          {
+            home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              extraSpecialArgs = { inherit inputs username; };
+              users.${username} = import ./home.nix;
+            };
+          }
         ];
-        extraSpecialArgs = { username = user; };
       };
+
+      nixosConfigurations.Atarayo = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        modules = [
+          ./nixos/Atarayo/configuration.nix
+          apple-silicon-support.nixosModules.apple-silicon-support
+          home-manager.nixosModules.home-manager
+          {
+            home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              extraSpecialArgs = { inherit inputs username; };
+              users.${username} = import ./home.nix;
+            };
+          }
+        ];
+      };
+
+      homeConfigurations.${username} = mkHome builtins.currentSystem;
     };
 }
-
