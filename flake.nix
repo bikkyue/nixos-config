@@ -35,41 +35,44 @@
         home-manager.lib.homeManagerConfiguration {
           pkgs = nixpkgs.legacyPackages.${system};
           extraSpecialArgs = { inherit inputs username; };
-          modules = [ ./home.nix ];
+          modules = [
+            ./home/common.nix
+            ./home/dev.nix
+          ];
+        };
+      mkHost =
+        {
+          name,
+          system,
+          extraModules ? [ ],
+        }:
+        nixpkgs.lib.nixosSystem {
+          inherit system;
+          modules = [
+            ./hosts/${name}/configuration.nix
+            home-manager.nixosModules.home-manager
+            {
+              home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                extraSpecialArgs = { inherit inputs username; };
+                users.${username} = import ./hosts/${name}/home.nix;
+              };
+            }
+          ]
+          ++ extraModules;
         };
     in
     {
-      nixosConfigurations.Shironere = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.Shironere = mkHost {
+        name = "Shironere";
         system = "x86_64-linux";
-        modules = [
-          ./nixos/Shironere/configuration.nix
-          home-manager.nixosModules.home-manager
-          {
-            home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              extraSpecialArgs = { inherit inputs username; };
-              users.${username} = import ./home.nix;
-            };
-          }
-        ];
       };
 
-      nixosConfigurations.Atarayo = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.Atarayo = mkHost {
+        name = "Atarayo";
         system = "aarch64-linux";
-        modules = [
-          ./nixos/Atarayo/configuration.nix
-          apple-silicon-support.nixosModules.apple-silicon-support
-          home-manager.nixosModules.home-manager
-          {
-            home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              extraSpecialArgs = { inherit inputs username; };
-              users.${username} = import ./home.nix;
-            };
-          }
-        ];
+        extraModules = [ apple-silicon-support.nixosModules.apple-silicon-support ];
       };
 
       homeConfigurations.${username} = mkHome builtins.currentSystem;
