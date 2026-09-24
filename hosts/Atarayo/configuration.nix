@@ -32,6 +32,10 @@
   boot.kernelParams = [ "quiet" ];
 
   networking.hostName = "Atarayo";
+  services.tailscale = {
+    enable = true;
+    openFirewall = true;
+  };
   time.timeZone = "Asia/Tokyo";
 
   users.users.bikkyue.extraGroups = [ "uinput" ];
