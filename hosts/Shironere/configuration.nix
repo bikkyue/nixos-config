@@ -57,16 +57,7 @@
     cloudflared
   ];
 
-  services.xserver.enable = true;
-  services.desktopManager.plasma6.enable = true;
-  services.displayManager.sddm.enable = true;
-  services.xrdp = {
-    enable = true;
-    defaultWindowManager = "startplasma-x11";
-    openFirewall = false;
-  };
-
-  # Shironere must remain reachable as a remote server even when Plasma is idle.
+  # Shironere must remain reachable as a remote server even when idle.
   systemd.sleep.settings.Sleep = {
     AllowSuspend = "no";
     AllowHibernation = "no";
