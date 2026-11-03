@@ -21,25 +21,11 @@ let
   ];
 in
 {
-  environment.systemPackages = [ pkgs.alacritty ];
-
-  home-manager.users.bikkyue = {
-    xdg.configFile."alacritty/alacritty.toml".text = ''
-      [font]
-      normal = { family = "NotoSansM Nerd Font Mono" }
-      size = 14
-
-      [window]
-      decorations = "None"
-      padding = { x = 12, y = 12 }
-
-      [selection]
-      save_to_clipboard = true
-
-    '';
-
-    xdg.desktopEntries.nvim-terminal = {
-      name = "Neovim (Alacritty)";
+  environment.systemPackages = [
+    pkgs.alacritty
+    (pkgs.makeDesktopItem {
+      name = "nvim-terminal";
+      desktopName = "Neovim (Alacritty)";
       genericName = "Text Editor";
       exec = "alacritty -e nvim %F";
       icon = "nvim";
@@ -48,17 +34,28 @@ in
         "Utility"
         "TextEditor"
       ];
-      mimeType = nvimMimeTypes;
-    };
+      mimeTypes = nvimMimeTypes;
+    })
+  ];
 
-    xdg.mimeApps = {
-      enable = true;
-      defaultApplications = builtins.listToAttrs (
-        map (mimeType: {
-          name = mimeType;
-          value = [ "nvim-terminal.desktop" ];
-        }) nvimMimeTypes
-      );
-    };
-  };
+  environment.etc."alacritty/alacritty.toml".text = ''
+    [font]
+    normal = { family = "NotoSansM Nerd Font Mono" }
+    size = 14
+
+    [window]
+    decorations = "None"
+    padding = { x = 12, y = 12 }
+
+    [selection]
+    save_to_clipboard = true
+
+  '';
+
+  xdg.mime.defaultApplications = builtins.listToAttrs (
+    map (mimeType: {
+      name = mimeType;
+      value = [ "nvim-terminal.desktop" ];
+    }) nvimMimeTypes
+  );
 }

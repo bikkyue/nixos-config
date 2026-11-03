@@ -6,7 +6,7 @@
     fuzzel
   ];
 
-  home-manager.users.bikkyue.xdg.configFile."fuzzel/fuzzel.ini".text = ''
+  environment.etc."xdg/fuzzel/fuzzel.ini".text = ''
     [main]
     font=NotoSansM Nerd Font Mono:size=18
     prompt=󰍉${"  "}
