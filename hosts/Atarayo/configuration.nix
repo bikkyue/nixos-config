@@ -44,6 +44,7 @@
     vim
     git
     fastfetch
+    helix
   ];
 
   zramSwap.enable = true;
