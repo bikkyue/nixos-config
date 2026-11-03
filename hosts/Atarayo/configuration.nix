@@ -15,6 +15,13 @@
 
   hardware.asahi.enable = true;
   hardware.asahi.peripheralFirmwareDirectory = /firmware;
+  # Asahi カーネルのビルド済みバイナリを nix-community のキャッシュから取得する
+  nix.settings = {
+    extra-substituters = [ "https://nix-community.cachix.org" ];
+    extra-trusted-public-keys = [
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+    ];
+  };
   hardware.bluetooth = {
     enable = true;
     powerOnBoot = true;
