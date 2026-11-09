@@ -41,6 +41,16 @@
         "create mask" = "0664";
         "directory mask" = "0775";
       };
+      media = {
+        path = "/home/bikkyue/docker/immich/media";
+        browseable = "yes";
+        "read only" = "no";
+        "guest ok" = "no";
+        "valid users" = "bikkyue";
+        "force user" = "bikkyue";
+        "create mask" = "0664";
+        "directory mask" = "0775";
+      };
     };
   };
 
