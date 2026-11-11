@@ -11,6 +11,7 @@
     ./modules/desktop-niri/niri.nix
     ./modules/desktop-niri/sunshine.nix
     ./modules/desktop-niri/waybar.nix
+    ./modules/typec-displayport.nix
   ];
 
   hardware.asahi.enable = true;
