@@ -1,0 +1,30 @@
+--- a/drivers/gpu/drm/apple/iomfb_template.c
++++ b/drivers/gpu/drm/apple/iomfb_template.c
+@@ -942,15 +942,20 @@
+ 
+ 	dcp_swap_start(dcp, false, &swap_req, dcp_swap_clear_started, cookie);
+ 
+-	ret = wait_for_completion_timeout(&cookie->done, msecs_to_jiffies(50));
++	ret = wait_for_completion_timeout(&cookie->done, msecs_to_jiffies(200));
+ 	swap_id = cookie->swap_id;
+ 	kref_put(&cookie->refcount, release_swap_cookie);
+-	if (ret <= 0) {
+-		dcp->crashed = true;
+-		return;
+-	}
+-
+-	dev_dbg(dcp->dev, "%s: clear swap submitted: %u\n", __func__, swap_id);
++	/*
++	 * When the DP sink goes away (e.g. a KVM switch behind a USB-C hub) the
++	 * clear swap may not complete in time. That does not mean DCP crashed;
++	 * real crashes are reported via the RTKit crash handler. Marking DCP as
++	 * crashed here silently rejects every later atomic check until reboot,
++	 * so only warn and continue powering off.
++	 */
++	if (ret <= 0)
++		dev_warn(dcp->dev, "%s: clear swap timed out, continuing\n", __func__);
++	else
++		dev_dbg(dcp->dev, "%s: clear swap submitted: %u\n", __func__, swap_id);
+ 
+ 	poff_cookie = kzalloc(sizeof(*poff_cookie), GFP_KERNEL);
+ 	if (!poff_cookie)
