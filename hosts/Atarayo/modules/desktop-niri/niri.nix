@@ -42,6 +42,8 @@
 
     spawn-at-startup "waybar"
     spawn-at-startup "awww-daemon"
+    // awww-daemon の起動を待ってから、すべての出力に壁紙を設定する
+    spawn-at-startup "sh" "-c" r#"until awww query >/dev/null 2>&1; do sleep 0.2; done; exec awww img "$HOME/Pictures/VRChat_2026-07-19_13-51-05.468_3840x2160-2.png""#
     hotkey-overlay { }
     screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 
