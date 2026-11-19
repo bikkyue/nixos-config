@@ -40,6 +40,7 @@ let
   # KVM を切り替えるとハブは Mac に何も通知せず映像が途切れたままになるため、
   # Type-C コントローラ（port1 = i2c 0-003f）のドライバを付け直して DP を接続し直す
   dpStamp = "/run/dp-relink.stamp";
+  dpCount = "/run/dp-relink.history";
   dpRelinkRoot = pkgs.writeShellScript "dp-relink-root" ''
     set -eu
     drv=/sys/bus/i2c/drivers/tps6598x
@@ -53,16 +54,29 @@ let
       exit 1
     fi
 
-    # --auto: KVM 経由の USB 機器の接続をきっかけに udev から呼ばれる。
-    # 直近 20 秒以内に付け直したか、ハブが接続されたばかりなら DP も成立したばかりなので何もしない。
-    # （付け直すと USB 機器も接続し直されるので、これがないと無限に繰り返す）
+    now=$(${pkgs.coreutils}/bin/date +%s)
+    dp_status() {
+      ${pkgs.coreutils}/bin/cat /sys/class/drm/card*-DP-1/status 2>/dev/null || true
+    }
+
+    # --auto: KVM の USB ハブの接続をきっかけに udev から呼ばれる。
     if [ "''${1:-}" = "--auto" ]; then
-      if [ -e ${dpStamp} ] && [ $(( $(${pkgs.coreutils}/bin/date +%s) - $(${pkgs.coreutils}/bin/stat -c %Y ${dpStamp}) )) -lt 20 ]; then
+      # KVM が映像を切り替え終え、Type-C ハブの DP の接続も落ち着くのを待つ
+      sleep 3
+      # 直近 20 秒以内に付け直したかハブがつながった直後で、DP も接続できていれば何もしない。
+      # （付け直すと USB 機器も接続し直されるので、これがないと付け直しを繰り返す）
+      # ハブがつながり直しても DP が戻らないことがあるので、未接続なら付け直す。
+      if [ -e ${dpStamp} ] && [ $(( now - $(${pkgs.coreutils}/bin/stat -c %Y ${dpStamp}) )) -lt 20 ] \
+        && [ "$(dp_status)" = "connected" ]; then
         echo "skip: DP was (re)connected recently"
         exit 0
       fi
-      # KVM が映像を切り替え終えるのを待つ
-      sleep 2
+      # 万一 DP が戻らず付け直しが繰り返されても、2 分間に 3 回までにする
+      recent=$(${pkgs.gawk}/bin/awk -v now="$now" 'now - $1 < 120' ${dpCount} 2>/dev/null | ${pkgs.coreutils}/bin/wc -l)
+      if [ "$recent" -ge 3 ]; then
+        echo "skip: relinked $recent times in the last 2 minutes"
+        exit 0
+      fi
     fi
 
     # --boot: 起動時は Type-C コントローラが表示ドライバより先に DP の接続を通知してしまい、
@@ -81,6 +95,7 @@ let
     fi
 
     ${pkgs.coreutils}/bin/touch ${dpStamp}
+    echo "$now" >> ${dpCount}
     echo "relinking DP via $dev"
     if [ -e "$drv/$dev" ]; then
       echo "$dev" > "$drv/unbind"
@@ -96,11 +111,15 @@ in
   boot.kernelPackages = lib.mkForce (pkgs.linuxPackagesFor fairydustKernel);
 
   # - Type-C ハブ（port1 = xhci 502280000 の直下）の接続：ケーブルを挿した直後で DP も成立するので時刻だけ記録する
-  # - KVM の USB ハブ（本体 USB-A = PCIe xhci 690000000 の直下）の接続：
-  #   KVM が Mac に切り替わったので DP を接続し直す
+  # - KVM の USB ハブの接続：KVM が Mac に切り替わったので DP を接続し直す。
+  #   KVM の USB はどちらにつないでもよいように、次の 2 か所を見る。
+  #   - 本体 USB-A（PCIe xhci 690000000）の直下
+  #   - Type-C ハブの直下にあるハブ（3-1.3 など）
+  #   SYSTEMD_WANTS は同じ機器の抜き差しを繰り返すと起動されないことがあるので、毎回 systemctl で起動する。
   services.udev.extraRules = ''
     ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", DEVPATH=="/devices/platform/soc/502280000.usb/*", KERNEL=="[0-9]*-[0-9]*", KERNEL!="*.*", RUN+="${pkgs.coreutils}/bin/touch ${dpStamp}"
-    ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", DEVPATH=="/devices/platform/soc/690000000.pcie/*", KERNEL=="[0-9]*-[0-9]*", KERNEL!="*.*", TAG+="systemd", ENV{SYSTEMD_WANTS}+="dp-relink.service"
+    ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", DEVPATH=="/devices/platform/soc/690000000.pcie/*", KERNEL=="[0-9]*-[0-9]*", KERNEL!="*.*", RUN+="${config.systemd.package}/bin/systemctl --no-block start dp-relink.service"
+    ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", DEVPATH=="/devices/platform/soc/502280000.usb/*", KERNEL=="[0-9]*-[0-9]*.[0-9]*", KERNEL!="*.*.*", ATTR{bDeviceClass}=="09", RUN+="${config.systemd.package}/bin/systemctl --no-block start dp-relink.service"
   '';
 
   systemd.services.dp-relink = {
