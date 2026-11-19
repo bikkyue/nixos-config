@@ -47,6 +47,10 @@
   time.timeZone = "Asia/Tokyo";
 
   users.users.bikkyue.extraGroups = [ "uinput" ];
+  # sudo のパスワード入力を 1 時間保持する
+  security.sudo.extraConfig = ''
+    Defaults timestamp_timeout=60
+  '';
 
   environment.systemPackages = with pkgs; [
     vim
